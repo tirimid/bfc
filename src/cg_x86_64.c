@@ -2,34 +2,28 @@
 
 #include <stdlib.h>
 #include <stddef.h>
-#include <stdint.h>
+
+#include "util.h"
 
 static unsigned cur_label = 0;
 
 void
 cg_x86_64_prelude(FILE *out_fp, enum target_os os)
 {
-	char const *prelude =
+	char const *prelude_indep =
 		"\t.set TAPE_SIZE, 4194304\n"
 		"\t.set PTR_START, 2097152\n"
 		"\t.section .data\n"
 		"bf_err_ptr:\n"
 		"\t.ascii \"[BF] data pointer left acceptable range of cells\\n\"\n"
+		"\t.section .bss\n"
+		"bf_input_buf:\n"
+		"\t.skip 32\n"
 		"\t.section .text\n"
-		"print:\n"
-		"\tpush %rsi\n"
-		"\tpush %rdi\n"
-		"\tmov $1, %rax\n"
-		"\tmov $0, %rdi\n"
-		"\tpop %rsi\n"
-		"\tpop %rdx\n"
-		"\tsyscall\n"
-		"\tret\n"
 		"error:\n"
 		"\tcall print\n"
-		"\tmov $60, %rax\n"
 		"\tmov $1, %rdi\n"
-		"\tsyscall\n"
+		"\tjmp quit\n"
 		".Lptr_err:\n"
 		"\tmov $bf_err_ptr, %rdi\n"
 		"\tmov $50, %rsi\n"
@@ -52,31 +46,71 @@ cg_x86_64_prelude(FILE *out_fp, enum target_os os)
 		"\tcall print\n"
 		"\tret\n"
 		"bf_input:\n"
-		"\tret\n"
-		"\t.global _start\n"
-		"_start:\n"
-		"\tmov $12, %rax\n"
-		"\tmov $0, %rdi\n"
-		"\tsyscall\n"
-		"\tmov %rax, %r12\n"
-		"\tmov %rax, %rdi\n"
-		"\tadd $TAPE_SIZE, %rdi\n"
-		"\tmov $12, %rax\n"
-		"\tsyscall\n"
-		"\tmov %r12, %r13\n"
-		"\tadd $PTR_START, %r13\n"
-		"\txor %r14, %r14\n";
+		"\tcall read\n"
+		"\tmovb bf_input_buf, %al\n"
+		"\tmovb %al, (%r13)\n"
+		"\tret\n";
 
-	fputs(prelude, out_fp);
+	char const *prelude_os_dep;
+	switch (os) {
+	case TARGET_OS_LINUX:
+		prelude_os_dep =
+			"print:\n"
+			"\tpush %rsi\n"
+			"\tpush %rdi\n"
+			"\tmov $1, %rax\n"
+			"\tmov $0, %rdi\n"
+			"\tpop %rsi\n"
+			"\tpop %rdx\n"
+			"\tsyscall\n"
+			"\tret\n"
+			"read:\n"
+			"\tmov $0, %rax\n"
+			"\tmov $0, %rdi\n"
+			"\tmov $bf_input_buf, %rsi\n"
+			"\tmov $32, %rdx\n"
+			"\tsyscall\n"
+			"\tret\n"
+			"quit:\n"
+			"\tmov $60, %rax\n"
+			"\tsyscall\n";
+		break;
+	}
+
+	char const *prelude_start;
+	switch (os) {
+	case TARGET_OS_LINUX:
+		prelude_start =
+			"\t.global _start\n"
+			"_start:\n"
+			"\tmov $12, %rax\n"
+			"\tmov $0, %rdi\n"
+			"\tsyscall\n"
+			"\tmov %rax, %r12\n"
+			"\tmov %rax, %rdi\n"
+			"\tadd $TAPE_SIZE, %rdi\n"
+			"\tmov $12, %rax\n"
+			"\tsyscall\n"
+			"\tmov %r12, %rdi\n"
+			"\tmov $TAPE_SIZE, %rcx\n"
+			"\txor %rax, %rax\n"
+			"\trep stosb\n"
+			"\tmov %r12, %r13\n"
+			"\tadd $PTR_START, %r13\n";
+		break;
+	}
+
+	fputs(prelude_indep, out_fp);
+	fputs(prelude_os_dep, out_fp);
+	fputs(prelude_start, out_fp);
 }
 
 void
 cg_x86_64_postlude(FILE *out_fp, enum target_os os)
 {
 	char const *postlude =
-		"\tmov $60, %rax\n"
 		"\tmov $0, %rdi\n"
-		"\tsyscall\n";
+		"\tjmp quit\n";
 
 	fputs(postlude, out_fp);
 }
@@ -146,19 +180,6 @@ cg_x86_64_cond_begin(FILE *in_fp, FILE *out_fp)
 	char label[32] = {0};
 	sprintf(label, ".Lcb_%x:\n", cur_label++);
 	fputs(label, out_fp);
-}
-
-static int
-fgetc_back(FILE *fp)
-{
-	if (ftell(fp) == 0)
-		return EOF;
-
-	uint8_t c;
-	fseek(fp, -2, SEEK_CUR);
-	fread(&c, 1, 1, fp);
-	fseek(fp, -1, SEEK_CUR);
-	return c;
 }
 
 void
