@@ -5,10 +5,8 @@
 
 #include "util.h"
 
-static unsigned cur_label = 0;
-
 void
-cg_x86_64_prelude(FILE *out_fp, enum target_os os)
+cg_x86_64_prelude(struct cg_state *cgs)
 {
 	char const *prelude_indep =
 		"\t.set TAPE_SIZE, 4194304\n"
@@ -52,7 +50,7 @@ cg_x86_64_prelude(FILE *out_fp, enum target_os os)
 		"\tret\n";
 
 	char const *prelude_os_dep;
-	switch (os) {
+	switch (cgs->os) {
 	case TARGET_OS_LINUX:
 		prelude_os_dep =
 			"print:\n"
@@ -78,7 +76,7 @@ cg_x86_64_prelude(FILE *out_fp, enum target_os os)
 	}
 
 	char const *prelude_start;
-	switch (os) {
+	switch (cgs->os) {
 	case TARGET_OS_LINUX:
 		prelude_start =
 			"\t.global _start\n"
@@ -100,115 +98,119 @@ cg_x86_64_prelude(FILE *out_fp, enum target_os os)
 		break;
 	}
 
-	fputs(prelude_indep, out_fp);
-	fputs(prelude_os_dep, out_fp);
-	fputs(prelude_start, out_fp);
+	fputs(prelude_indep, cgs->out_fp);
+	fputs(prelude_os_dep, cgs->out_fp);
+	fputs(prelude_start, cgs->out_fp);
 }
 
 void
-cg_x86_64_postlude(FILE *out_fp, enum target_os os)
+cg_x86_64_postlude(struct cg_state *cgs)
 {
 	char const *postlude =
 		"\tmov $0, %rdi\n"
 		"\tjmp quit\n";
 
-	fputs(postlude, out_fp);
+	fputs(postlude, cgs->out_fp);
 }
 
 void
-cg_x86_64_ptr_right(FILE *out_fp)
+cg_x86_64_ptr_right(struct cg_state *cgs)
 {
-	fputs("\tcall bf_ptr_right\n", out_fp);
+	fputs("\tcall bf_ptr_right\n", cgs->out_fp);
 }
 
 void
-cg_x86_64_ptr_left(FILE *out_fp)
+cg_x86_64_ptr_left(struct cg_state *cgs)
 {
-	fputs("\tcall bf_ptr_left\n", out_fp);
+	fputs("\tcall bf_ptr_left\n", cgs->out_fp);
 }
 
 void
-cg_x86_64_inc(FILE *out_fp)
+cg_x86_64_inc(struct cg_state *cgs)
 {
-	fputs("\tincb (%r13)\n", out_fp);
+	fputs("\tincb (%r13)\n", cgs->out_fp);
 }
 
 void
-cg_x86_64_dec(FILE *out_fp)
+cg_x86_64_dec(struct cg_state *cgs)
 {
-	fputs("\tdecb (%r13)\n", out_fp);
+	fputs("\tdecb (%r13)\n", cgs->out_fp);
 }
 
 void
-cg_x86_64_output(FILE *out_fp, enum target_os os)
+cg_x86_64_output(struct cg_state *cgs)
 {
-	fputs("\tcall bf_output\n", out_fp);
+	fputs("\tcall bf_output\n", cgs->out_fp);
 }
 
 void
-cg_x86_64_input(FILE *out_fp, enum target_os os)
+cg_x86_64_input(struct cg_state *cgs)
 {
-	fputs("\tcall bf_input\n", out_fp);
+	fputs("\tcall bf_input\n", cgs->out_fp);
 }
 
 void
-cg_x86_64_cond_begin(FILE *in_fp, FILE *out_fp)
+cg_x86_64_cond_begin(struct cg_state *cgs)
 {
-	size_t reset_pt = ftell(in_fp);
+	size_t reset_pt = ftell(cgs->in_fp);
 
-	unsigned jmp_label = cur_label;
+	unsigned jmp_label = cgs->cur_label;
 	size_t nests_rem = 1;
-	for (int c; (c = fgetc(in_fp)) != EOF && nests_rem;) {
+	for (int c; (c = fgetc(cgs->in_fp)) != EOF && nests_rem;) {
 		jmp_label += c == '[' || c == ']';
 		nests_rem += c == '[';
 		nests_rem -= c == ']';
 	}
 
+	fseek(cgs->in_fp, reset_pt, SEEK_SET);
+
 	if (nests_rem) {
-		printf("unmatched conditional [-bracket!\n");
+		size_t line, col;
+		file_pos(cgs->in_fp, &line, &col);
+		printf("%zu:%zu - unmatched conditional [-bracket!\n", line, col);
 		exit(-1);
 	}
-	
-	fseek(in_fp, reset_pt, SEEK_SET);
 
-	fputs("\tcmpb $0, (%r13)\n", out_fp);
+	fputs("\tcmpb $0, (%r13)\n", cgs->out_fp);
 
 	char jmp[32] = {0};
 	sprintf(jmp, "\tje .Lce_%x\n", jmp_label);
-	fputs(jmp, out_fp);
+	fputs(jmp, cgs->out_fp);
 
 	char label[32] = {0};
-	sprintf(label, ".Lcb_%x:\n", cur_label++);
-	fputs(label, out_fp);
+	sprintf(label, ".Lcb_%x:\n", cgs->cur_label++);
+	fputs(label, cgs->out_fp);
 }
 
 void
-cg_x86_64_cond_end(FILE *in_fp, FILE *out_fp)
+cg_x86_64_cond_end(struct cg_state *cgs)
 {
-	size_t reset_pt = ftell(in_fp);
+	size_t reset_pt = ftell(cgs->in_fp);
 
-	unsigned jmp_label = cur_label;
+	unsigned jmp_label = cgs->cur_label;
 	size_t nests_rem = 1;
-	for (int c; (c = fgetc_back(in_fp)) != EOF && nests_rem;) {
+	for (int c; (c = fgetc_back(cgs->in_fp)) != EOF && nests_rem;) {
 		jmp_label -= c == '[' || c == ']';
 		nests_rem -= c == '[';
 		nests_rem += c == ']';
 	}
 
+	fseek(cgs->in_fp, reset_pt, SEEK_SET);
+
 	if (nests_rem) {
-		printf("unmatched conditional ]-bracket!\n");
+		size_t line, col;
+		file_pos(cgs->in_fp, &line, &col);
+		printf("%zu:%zu - unmatched conditional ]-bracket!\n", line, col);
 		exit(-1);
 	}
-	
-	fseek(in_fp, reset_pt, SEEK_SET);
 
-	fputs("\tcmpb $0, (%r13)\n", out_fp);
+	fputs("\tcmpb $0, (%r13)\n", cgs->out_fp);
 
 	char jmp[32] = {0};
 	sprintf(jmp, "\tjne .Lcb_%x\n", jmp_label);
-	fputs(jmp, out_fp);
+	fputs(jmp, cgs->out_fp);
 
 	char label[32] = {0};
-	sprintf(label, ".Lce_%x:\n", cur_label++);
-	fputs(label, out_fp);
+	sprintf(label, ".Lce_%x:\n", cgs->cur_label++);
+	fputs(label, cgs->out_fp);
 }

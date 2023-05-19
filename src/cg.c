@@ -2,58 +2,77 @@
 
 #include "cg_x86_64.h"
 
+enum fn_ind {
+	FN_IND_PRELUDE = 0,
+	FN_IND_POSTLUDE,
+	FN_IND_PTR_RIGHT,
+	FN_IND_PTR_LEFT,
+	FN_IND_INC,
+	FN_IND_DEC,
+	FN_IND_OUTPUT,
+	FN_IND_INPUT,
+	FN_IND_COND_BEGIN,
+	FN_IND_COND_END,
+	FN_IND_LAST__,
+};
+
 void
 assemble(FILE *in_fp, FILE *out_fp, enum target_arch arch, enum target_os os)
 {
-	void (*cg_fn_indep[4])(FILE *);
-	void (*cg_fn_os_dep[4])(FILE *, enum target_os);
-	void (*cg_fn_input_dep[2])(FILE *, FILE *);
+	void (*cg_fns[FN_IND_LAST__])(struct cg_state *);
 
 	switch (arch) {
 	case TARGET_ARCH_X86_64:
-		cg_fn_indep[0] = cg_x86_64_ptr_right;
-		cg_fn_indep[1] = cg_x86_64_ptr_left;
-		cg_fn_indep[2] = cg_x86_64_inc;
-		cg_fn_indep[3] = cg_x86_64_dec;
-		cg_fn_os_dep[0] = cg_x86_64_prelude;
-		cg_fn_os_dep[1] = cg_x86_64_postlude;
-		cg_fn_os_dep[2] = cg_x86_64_output;
-		cg_fn_os_dep[3] = cg_x86_64_input;
-		cg_fn_input_dep[0] = cg_x86_64_cond_begin;
-		cg_fn_input_dep[1] = cg_x86_64_cond_end;
+		cg_fns[FN_IND_PRELUDE] = cg_x86_64_prelude;
+		cg_fns[FN_IND_POSTLUDE] = cg_x86_64_postlude;
+		cg_fns[FN_IND_PTR_RIGHT] = cg_x86_64_ptr_right;
+		cg_fns[FN_IND_PTR_LEFT] = cg_x86_64_ptr_left;
+		cg_fns[FN_IND_INC] = cg_x86_64_inc;
+		cg_fns[FN_IND_DEC] = cg_x86_64_dec;
+		cg_fns[FN_IND_OUTPUT] = cg_x86_64_output;
+		cg_fns[FN_IND_INPUT] = cg_x86_64_input;
+		cg_fns[FN_IND_COND_BEGIN] = cg_x86_64_cond_begin;
+		cg_fns[FN_IND_COND_END] = cg_x86_64_cond_end;
 		break;
 	}
 
-	cg_fn_os_dep[0](out_fp, os);
+	struct cg_state cgs = {
+		.in_fp = in_fp,
+		.out_fp = out_fp,
+		.cur_label = 0,
+		.os = os,
+	};
 
-	for (int c; (c = getc(in_fp)) != EOF;) {
+	cg_fns[FN_IND_PRELUDE](&cgs);
+
+	for (int c; (c = getc(cgs.in_fp)) != EOF;) {
 		switch (c) {
 		case '>':
-			cg_fn_indep[0](out_fp);
+			cg_fns[FN_IND_PTR_RIGHT](&cgs);
 			break;
 		case '<':
-			cg_fn_indep[1](out_fp);
+			cg_fns[FN_IND_PTR_LEFT](&cgs);
 			break;
 		case '+':
-			cg_fn_indep[2](out_fp);
+			cg_fns[FN_IND_INC](&cgs);
 			break;
 		case '-':
-			cg_fn_indep[3](out_fp);
+			cg_fns[FN_IND_DEC](&cgs);
 			break;
 		case '.':
-			cg_fn_os_dep[2](out_fp, os);
+			cg_fns[FN_IND_OUTPUT](&cgs);
 			break;
 		case ',':
-			cg_fn_os_dep[3](out_fp, os);
+			cg_fns[FN_IND_INPUT](&cgs);
 			break;
 		case '[':
-			cg_fn_input_dep[0](in_fp, out_fp);
+			cg_fns[FN_IND_COND_BEGIN](&cgs);
 			break;
 		case ']':
-			cg_fn_input_dep[1](in_fp, out_fp);
+			cg_fns[FN_IND_COND_END](&cgs);
 			break;
 		}
 	}
 
-	cg_fn_os_dep[1](out_fp, os);
+	cg_fns[FN_IND_POSTLUDE](&cgs);
 }
