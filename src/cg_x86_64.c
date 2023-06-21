@@ -128,13 +128,31 @@ cg_x86_64_ptr_left(struct cg_state *cgs)
 void
 cg_x86_64_inc(struct cg_state *cgs)
 {
-	fputs("\tincb (%r13)\n", cgs->out_fp);
+	unsigned inc_cnt = 1;
+	
+	while (fgetc(cgs->in_fp) == '+')
+		++inc_cnt;
+
+	fgetc_back(cgs->in_fp);
+
+	char add[32];
+	sprintf(add, "\taddb $0x%x, (%%r13)\n", inc_cnt);
+	fputs(add, cgs->out_fp);
 }
 
 void
 cg_x86_64_dec(struct cg_state *cgs)
 {
-	fputs("\tdecb (%r13)\n", cgs->out_fp);
+	unsigned dec_cnt = 1;
+	
+	while (fgetc(cgs->in_fp) == '-')
+		++dec_cnt;
+
+	fgetc_back(cgs->in_fp);
+
+	char sub[32];
+	sprintf(sub, "\tsubb $0x%x, (%%r13)\n", dec_cnt);
+	fputs(sub, cgs->out_fp);
 }
 
 void
