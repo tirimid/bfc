@@ -23,7 +23,7 @@ main(int argc, char const *argv[])
 		return -1;
 	}
 
-	assemble(in_fp, out_fp, TARGET_ARCH_X86_64, TARGET_OS_LINUX);
+	compile(in_fp, out_fp, TARGET_ARCH_X86_64, TARGET_OS_LINUX);
 
 	fclose(in_fp);
 	fclose(out_fp);

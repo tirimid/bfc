@@ -5,7 +5,7 @@
 
 #include "cgdef.h"
 
-void assemble(FILE *in_fp, FILE *out_fp, enum target_arch arch,
-              enum target_os os);
+void compile(FILE *in_fp, FILE *out_fp, enum target_arch arch,
+             enum target_os os);
 
 #endif

@@ -17,7 +17,7 @@ enum fn_ind {
 };
 
 void
-assemble(FILE *in_fp, FILE *out_fp, enum target_arch arch, enum target_os os)
+compile(FILE *in_fp, FILE *out_fp, enum target_arch arch, enum target_os os)
 {
 	void (*cg_fns[FN_IND_LAST__])(struct cg_state *);
 
