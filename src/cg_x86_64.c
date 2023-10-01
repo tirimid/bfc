@@ -1,9 +1,22 @@
 #include "cg_x86_64.h"
 
-#include <stdlib.h>
 #include <stddef.h>
+#include <stdlib.h>
 
 #include "util.h"
+
+void (*cg_x86_64_fntab[10])(struct cg_state *) = {
+	cg_x86_64_prelude,
+	cg_x86_64_postlude,
+	cg_x86_64_right,
+	cg_x86_64_left,
+	cg_x86_64_inc,
+	cg_x86_64_dec,
+	cg_x86_64_output,
+	cg_x86_64_input,
+	cg_x86_64_cond_begin,
+	cg_x86_64_cond_end,
+};
 
 void
 cg_x86_64_prelude(struct cg_state *cgs)
@@ -114,13 +127,13 @@ cg_x86_64_postlude(struct cg_state *cgs)
 }
 
 void
-cg_x86_64_ptr_right(struct cg_state *cgs)
+cg_x86_64_right(struct cg_state *cgs)
 {
 	fputs("\tcall bf_ptr_right\n", cgs->out_fp);
 }
 
 void
-cg_x86_64_ptr_left(struct cg_state *cgs)
+cg_x86_64_left(struct cg_state *cgs)
 {
 	fputs("\tcall bf_ptr_left\n", cgs->out_fp);
 }
@@ -185,7 +198,7 @@ cg_x86_64_cond_begin(struct cg_state *cgs)
 	if (nests_rem) {
 		size_t line, col;
 		file_pos(cgs->in_fp, &line, &col);
-		printf("%zu:%zu - unmatched conditional [-bracket!\n", line, col);
+		fprintf(stderr, "%zu:%zu - unmatched conditional [-bracket!\n", line, col);
 		exit(-1);
 	}
 
@@ -218,7 +231,7 @@ cg_x86_64_cond_end(struct cg_state *cgs)
 	if (nests_rem) {
 		size_t line, col;
 		file_pos(cgs->in_fp, &line, &col);
-		printf("%zu:%zu - unmatched conditional ]-bracket!\n", line, col);
+		fprintf(stderr, "%zu:%zu - unmatched conditional ]-bracket!\n", line, col);
 		exit(-1);
 	}
 
