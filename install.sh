@@ -4,7 +4,7 @@ then
 	exit 1
 fi
 
-cp bfcc /usr/bin
+cp bfc /usr/bin
 if [ $? -ne 0 ]
 then
 	echo "please build program before installing"

@@ -5,54 +5,54 @@
 #include "cg_x86_64.h"
 
 void
-compile(FILE *in_fp, FILE *out_fp, enum target_arch arch, enum target_os os)
+compile(FILE *infp, FILE *outfp, enum arch arch, enum os os)
 {
-	void (*cg_fntab[FNTAB_ENT_LAST__])(struct cg_state *);
+	void (**cg_fntab)(struct cgstate *);
 	switch (arch) {
-	case TARGET_ARCH_X86_64:
-		memcpy(cg_fntab, cg_x86_64_fntab, sizeof(cg_fntab));
+	case ARCH_X86_64:
+		cg_fntab = cg_x86_64_fntab;
 		break;
 	}
 
-	struct cg_state cgs = {
-		.in_fp = in_fp,
-		.out_fp = out_fp,
-		.cur_label = 0,
+	struct cgstate cgs = {
+		.infp = infp,
+		.outfp = outfp,
+		.curlabel = 0,
 		.os = os,
 	};
 
-	cg_fntab[FNTAB_ENT_PRELUDE](&cgs);
+	cg_fntab[FTE_PRELUDE](&cgs);
 
-	for (int c; (c = getc(cgs.in_fp)) != EOF;) {
+	for (int c; (c = getc(cgs.infp)) != EOF;) {
 		switch (c) {
 		case '>':
-			cg_fntab[FNTAB_ENT_RIGHT](&cgs);
+			cg_fntab[FTE_RIGHT](&cgs);
 			break;
 		case '<':
-			cg_fntab[FNTAB_ENT_LEFT](&cgs);
+			cg_fntab[FTE_LEFT](&cgs);
 			break;
 		case '+':
-			cg_fntab[FNTAB_ENT_INC](&cgs);
+			cg_fntab[FTE_INC](&cgs);
 			break;
 		case '-':
-			cg_fntab[FNTAB_ENT_DEC](&cgs);
+			cg_fntab[FTE_DEC](&cgs);
 			break;
 		case '.':
-			cg_fntab[FNTAB_ENT_OUTPUT](&cgs);
+			cg_fntab[FTE_OUTPUT](&cgs);
 			break;
 		case ',':
-			cg_fntab[FNTAB_ENT_INPUT](&cgs);
+			cg_fntab[FTE_INPUT](&cgs);
 			break;
 		case '[':
-			cg_fntab[FNTAB_ENT_COND_BEGIN](&cgs);
+			cg_fntab[FTE_CONDBEGIN](&cgs);
 			break;
 		case ']':
-			cg_fntab[FNTAB_ENT_COND_END](&cgs);
+			cg_fntab[FTE_CONDEND](&cgs);
 			break;
 		default:
 			break;
 		}
 	}
 
-	cg_fntab[FNTAB_ENT_POSTLUDE](&cgs);
+	cg_fntab[FTE_POSTLUDE](&cgs);
 }

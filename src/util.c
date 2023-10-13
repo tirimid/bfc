@@ -15,7 +15,7 @@ fgetc_back(FILE *fp)
 }
 
 void
-file_pos(FILE *fp, size_t *out_line, size_t *out_col)
+filepos(FILE *fp, size_t *out_line, size_t *out_col)
 {
 	*out_line = *out_col = 1;
 

@@ -3,32 +3,31 @@
 
 #include <stdio.h>
 
-enum target_arch {
-	TARGET_ARCH_X86_64,
+enum arch {
+	ARCH_X86_64,
 };
 
-enum target_os {
-	TARGET_OS_LINUX,
+enum os {
+	OS_LINUX,
 };
 
-enum fntab_ent {
-	FNTAB_ENT_PRELUDE = 0,
-	FNTAB_ENT_POSTLUDE,
-	FNTAB_ENT_RIGHT,
-	FNTAB_ENT_LEFT,
-	FNTAB_ENT_INC,
-	FNTAB_ENT_DEC,
-	FNTAB_ENT_OUTPUT,
-	FNTAB_ENT_INPUT,
-	FNTAB_ENT_COND_BEGIN,
-	FNTAB_ENT_COND_END,
-	FNTAB_ENT_LAST__,
+enum fntabent {
+	FTE_PRELUDE = 0,
+	FTE_POSTLUDE,
+	FTE_RIGHT,
+	FTE_LEFT,
+	FTE_INC,
+	FTE_DEC,
+	FTE_OUTPUT,
+	FTE_INPUT,
+	FTE_CONDBEGIN,
+	FTE_CONDEND,
 };
 
-struct cg_state {
-	FILE *in_fp, *out_fp;
-	unsigned cur_label;
-	enum target_os os;
+struct cgstate {
+	FILE *infp, *outfp;
+	unsigned curlabel;
+	enum os os;
 };
 
 #endif

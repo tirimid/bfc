@@ -4,7 +4,7 @@ then
 	exit 1
 fi
 
-rm /usr/bin/bfcc
+rm /usr/bin/bfc
 if [ $? -ne 0 ]
 then
 	echo "cannot uninstall program that was never installed"
