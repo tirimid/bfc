@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 #include "cg.h"
+#include "util.h"
 
 // for ease of implementation, the code assumes that these will accept the
 // usual GNU-style command line arguments, `-o` and such, and that they will
@@ -76,7 +77,7 @@ main(int argc, char const *argv[])
 	char const *obj = tmpnam(NULL); // dangerous but i dont care.
 	if (flag_o) {
 		char cmd[4096];
-		snprintf(cmd, 4096, "%s -o \"%s\" \"%s\"", ASSEMBLER, obj, argv[firstarg + 1]);
+		snprintf(cmd, 4096, ASSEMBLER " -o \"%s\" \"%s\"", obj, argv[firstarg + 1]);
 
 		if (system(cmd)) {
 			unlink(obj);
@@ -87,15 +88,21 @@ main(int argc, char const *argv[])
 
 	if (flag_b) {
 		char cmd[4096];
-		snprintf(cmd, 4096, "%s -o \"%s\" \"%s\"", LINKER, argv[firstarg + 1], obj);
+		snprintf(cmd, 4096, LINKER " -o \"%s\" \"%s\"", argv[firstarg + 1], obj);
 
 		if (system(cmd)) {
 			unlink(obj);
 			fputs("failed to link assembled object!\n", stderr);
 			return 1;
 		}
+	} else if (flag_o) {
+		if (cpfile(obj, argv[firstarg + 1])) {
+			unlink(obj);
+			fputs("failed to copy assembled object!\n", stderr);
+			return 1;
+		}
 	}
-
+	
 	unlink(obj);
 	
 	return 0;

@@ -32,3 +32,26 @@ filepos(FILE *fp, size_t *out_line, size_t *out_col)
 
 	fseek(fp, reset_pt, SEEK_SET);
 }
+
+int
+cpfile(char const *srcpath, char const *dstpath)
+{
+	FILE *src = fopen(srcpath, "rb");
+	if (!src)
+		return 1;
+	
+	FILE *dst = fopen(dstpath, "wb");
+	if (!dst) {
+		fclose(src);
+		return 1;
+	}
+	
+	int c;
+	while ((c = fgetc(src)) != EOF)
+		fputc(c, dst);
+	
+	fclose(dst);
+	fclose(src);
+	
+	return 0;
+}
